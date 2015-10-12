@@ -29,6 +29,7 @@ static void ngx_cache_loader_process_handler(ngx_event_t *ev);
 
 
 ngx_uint_t    ngx_process;
+ngx_uint_t    ngx_worker;
 ngx_pid_t     ngx_pid;
 
 sig_atomic_t  ngx_reap;
@@ -731,6 +732,7 @@ ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
     ngx_connection_t  *c;
 
     ngx_process = NGX_PROCESS_WORKER;
+    ngx_worker = worker;
 
     ngx_worker_process_init(cycle, worker);
 
@@ -839,19 +841,6 @@ ngx_worker_process_init(ngx_cycle_t *cycle, ngx_int_t worker)
                           ccf->rlimit_core);
         }
     }
-
-#ifdef RLIMIT_SIGPENDING
-    if (ccf->rlimit_sigpending != NGX_CONF_UNSET) {
-        rlmt.rlim_cur = (rlim_t) ccf->rlimit_sigpending;
-        rlmt.rlim_max = (rlim_t) ccf->rlimit_sigpending;
-
-        if (setrlimit(RLIMIT_SIGPENDING, &rlmt) == -1) {
-            ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
-                          "setrlimit(RLIMIT_SIGPENDING, %i) failed",
-                          ccf->rlimit_sigpending);
-        }
-    }
-#endif
 
     if (geteuid() == 0) {
         if (setgid(ccf->group) == -1) {

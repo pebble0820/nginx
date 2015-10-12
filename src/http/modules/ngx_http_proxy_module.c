@@ -1503,7 +1503,7 @@ ngx_http_proxy_body_output_filter(void *data, ngx_chain_t *in)
     u_char                *chunk;
     ngx_int_t              rc;
     ngx_buf_t             *b;
-    ngx_chain_t           *out, *cl, *tl, **ll;
+    ngx_chain_t           *out, *cl, *tl, **ll, **fl;
     ngx_http_proxy_ctx_t  *ctx;
 
     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
@@ -1546,6 +1546,7 @@ ngx_http_proxy_body_output_filter(void *data, ngx_chain_t *in)
 
     size = 0;
     cl = in;
+    fl = ll;
 
     for ( ;; ) {
         ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
@@ -1602,8 +1603,8 @@ ngx_http_proxy_body_output_filter(void *data, ngx_chain_t *in)
         b->pos = chunk;
         b->last = ngx_sprintf(chunk, "%xO" CRLF, size);
 
-        tl->next = out;
-        out = tl;
+        tl->next = *fl;
+        *fl = tl;
     }
 
     if (cl->buf->last_buf) {
@@ -3167,9 +3168,8 @@ ngx_http_proxy_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
                               prev->upstream.ssl_session_reuse, 1);
 
     ngx_conf_merge_bitmask_value(conf->ssl_protocols, prev->ssl_protocols,
-                                 (NGX_CONF_BITMASK_SET|NGX_SSL_SSLv3
-                                  |NGX_SSL_TLSv1|NGX_SSL_TLSv1_1
-                                  |NGX_SSL_TLSv1_2));
+                                 (NGX_CONF_BITMASK_SET|NGX_SSL_TLSv1
+                                  |NGX_SSL_TLSv1_1|NGX_SSL_TLSv1_2));
 
     ngx_conf_merge_str_value(conf->ssl_ciphers, prev->ssl_ciphers,
                              "DEFAULT");

@@ -1220,7 +1220,7 @@ ngx_http_add_addresses(ngx_conf_t *cf, ngx_http_core_srv_conf_t *cscf,
 {
     u_char                *p;
     size_t                 len, off;
-    ngx_uint_t             i, default_server;
+    ngx_uint_t             i, default_server, proxy_protocol;
     struct sockaddr       *sa;
     ngx_http_conf_addr_t  *addr;
 #if (NGX_HAVE_UNIX_DOMAIN)
@@ -1281,6 +1281,8 @@ ngx_http_add_addresses(ngx_conf_t *cf, ngx_http_core_srv_conf_t *cscf,
         /* preserve default_server bit during listen options overwriting */
         default_server = addr[i].opt.default_server;
 
+        proxy_protocol = lsopt->proxy_protocol || addr[i].opt.proxy_protocol;
+
 #if (NGX_HTTP_SSL)
         ssl = lsopt->ssl || addr[i].opt.ssl;
 #endif
@@ -1314,6 +1316,7 @@ ngx_http_add_addresses(ngx_conf_t *cf, ngx_http_core_srv_conf_t *cscf,
         }
 
         addr[i].opt.default_server = default_server;
+        addr[i].opt.proxy_protocol = proxy_protocol;
 #if (NGX_HTTP_SSL)
         addr[i].opt.ssl = ssl;
 #endif
@@ -1716,13 +1719,7 @@ ngx_http_init_listening(ngx_conf_t *cf, ngx_http_conf_port_t *port)
 
         ls->servers = hport;
 
-        if (i == last - 1) {
-            hport->naddrs = last;
-
-        } else {
-            hport->naddrs = 1;
-            i = 0;
-        }
+        hport->naddrs = i + 1;
 
         switch (ls->sockaddr->sa_family) {
 
@@ -1738,6 +1735,10 @@ ngx_http_init_listening(ngx_conf_t *cf, ngx_http_conf_port_t *port)
                 return NGX_ERROR;
             }
             break;
+        }
+
+        if (ngx_clone_listening(cf, ls) != NGX_OK) {
+            return NGX_ERROR;
         }
 
         addr++;
@@ -1816,6 +1817,10 @@ ngx_http_add_listening(ngx_conf_t *cf, ngx_http_conf_addr_t *addr)
 
 #if (NGX_HAVE_TCP_FASTOPEN)
     ls->fastopen = addr->opt.fastopen;
+#endif
+
+#if (NGX_HAVE_REUSEPORT)
+    ls->reuseport = addr->opt.reuseport;
 #endif
 
     return ls;
